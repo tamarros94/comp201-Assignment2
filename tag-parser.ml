@@ -89,6 +89,12 @@ let parse_constant sexpr = match sexpr with
   | _ -> raise X_syntax_error
   ;;
 
+let parse_var sexpr = match sexpr with
+  | Symbol(e) -> (
+      let is_reserved_word = List.mem e reserved_word_list in
+          if is_reserved_word then raise X_syntax_error else Var(e))
+  | _ -> raise X_syntax_error
+  ;;
 
 
 

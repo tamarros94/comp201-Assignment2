@@ -3,4 +3,4 @@
 open Reader;;
 open Tag_Parser;;
 
-parse_constant (TaggedSexpr ("x", Number (Int 2)));;
+parse_var (Symbol "and");;
