@@ -1,6 +1,16 @@
 #use "reader.ml";;
+open Reader;;
 
-type constant =
+type constant = 
+(*
+quoted and unquoted: Pair(Symbol(name), Pair(sexpr, Nil())
+booleans
+chars
+numbers
+strings
+tag def -> field is always a const. if the field is quote, it should not appear in the Const we generate.
+tag ref
+*)
   | Sexpr of sexpr
   | Void
 
@@ -44,12 +54,16 @@ let rec expr_eq e1 e2 =
                        
 exception X_syntax_error;;
 
-module type TAG_PARSER = sig
+(* module type TAG_PARSER =  *)
+(* sig
   val tag_parse_expression : sexpr -> expr
   val tag_parse_expressions : sexpr list -> expr list
-end;; (* signature TAG_PARSER *)
+end;;  *)
+(* signature TAG_PARSER *)
 
-module Tag_Parser : TAG_PARSER = struct
+module Tag_Parser 
+(* : TAG_PARSER  *)
+= struct
 
 let reserved_word_list =
   ["and"; "begin"; "cond"; "define"; "else";
@@ -58,6 +72,27 @@ let reserved_word_list =
    "unquote-splicing"];;  
 
 (* work on the tag parser starts here *)
+
+let parse_constant sexpr = match sexpr with
+  | Bool(e) -> Const(Sexpr(Bool(e)))
+  | Char(e) -> Const(Sexpr(Char(e)))
+  | Number(e) -> Const(Sexpr(Number(e)))
+  | String(e) -> Const(Sexpr(String(e)))
+  | Pair(Symbol("quote"), Pair(e, Nil)) -> Const(Sexpr(e))
+  | TagRef(e) -> Const(Sexpr(TagRef(e)))
+  | TaggedSexpr(e,Pair(Symbol "quote", Pair(x, Nil))) -> Const(Sexpr(TaggedSexpr(e, Nil)))
+  | TaggedSexpr(e,Bool(x)) -> Const(Sexpr(TaggedSexpr(e, Bool(x))))
+  | TaggedSexpr(e,Char(x)) -> Const(Sexpr(TaggedSexpr(e, Char(x))))
+  | TaggedSexpr(e,Number(x)) -> Const(Sexpr(TaggedSexpr(e, Number(x))))
+  | TaggedSexpr(e,String(x)) -> Const(Sexpr(TaggedSexpr(e, String(x))))
+  | TaggedSexpr(e,TagRef(x)) -> Const(Sexpr(TaggedSexpr(e, TagRef(x))))
+  | _ -> raise X_syntax_error
+  ;;
+
+
+
+
+
 
 let tag_parse_expression sexpr = raise X_not_yet_implemented;;
 
