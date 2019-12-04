@@ -3,4 +3,4 @@
 open Reader;;
 open Tag_Parser;;
 
-parse_var (Symbol "and");;
+parse_exp (Pair ((Symbol "if"), Pair (Bool false, Pair (String "pass", Pair (Nil, Nil)))));;
