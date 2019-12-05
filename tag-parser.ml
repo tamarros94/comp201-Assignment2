@@ -72,31 +72,26 @@ let reserved_word_list =
    "unquote-splicing"];;  
 
 (* work on the tag parser starts here *)
+let rec convert_pairs_to_str_list sexpr = match sexpr with
+  | Pair(car, cdr) -> List.append (convert_pairs_to_str_list car) (convert_pairs_to_str_list cdr)
+  | Nil -> []
+  | Symbol(str) -> []@[str]
+  | _ -> []
 
-let parse_constant sexpr = match sexpr with
-  | Bool(e) -> Const(Sexpr(Bool(e)))
-  | Char(e) -> Const(Sexpr(Char(e)))
-  | Number(e) -> Const(Sexpr(Number(e)))
-  | String(e) -> Const(Sexpr(String(e)))
-  | Pair(Symbol("quote"), Pair(e, Nil)) -> Const(Sexpr(e))
-  | TagRef(e) -> Const(Sexpr(TagRef(e)))
-  | TaggedSexpr(e,Pair(Symbol "quote", Pair(x, Nil))) -> Const(Sexpr(TaggedSexpr(e, Nil)))
-  | TaggedSexpr(e,Bool(x)) -> Const(Sexpr(TaggedSexpr(e, Bool(x))))
-  | TaggedSexpr(e,Char(x)) -> Const(Sexpr(TaggedSexpr(e, Char(x))))
-  | TaggedSexpr(e,Number(x)) -> Const(Sexpr(TaggedSexpr(e, Number(x))))
-  | TaggedSexpr(e,String(x)) -> Const(Sexpr(TaggedSexpr(e, String(x))))
-  | TaggedSexpr(e,TagRef(x)) -> Const(Sexpr(TaggedSexpr(e, TagRef(x))))
-  | _ -> raise X_syntax_error
-  ;;
+let rec is_proper_list sexpr = match sexpr with
+    | Pair(car, cdr) -> is_proper_list cdr
+    | Nil -> true
+    | _ -> false
 
-let parse_var sexpr = match sexpr with
-  | Symbol(e) -> (
-      let is_reserved_word = List.mem e reserved_word_list in
-          if is_reserved_word then raise X_syntax_error else Var(e))
-  | _ -> raise X_syntax_error
-  ;;
+let get_last_element lst = 
+    let rev_lst = List.rev lst in match rev_lst with
+    | car :: cdr -> car
+    | [] -> "empty list";;
 
-
+let rec remove_last_element lst = match lst with
+    | [x] -> []
+    | car :: cdr -> List.append [car] (remove_last_element cdr)
+    | [] -> [];;
 
 let rec parse_exp sexpr = match sexpr with
 (*constants*)
@@ -121,8 +116,20 @@ let rec parse_exp sexpr = match sexpr with
         If(parse_exp test, parse_exp dit, Const(Void))
   | Pair(Symbol("if"), Pair(test, Pair(dit, Pair(dif, Nil)))) ->
         If(parse_exp test, parse_exp dit, parse_exp dif)
-  | _ -> raise X_syntax_error
 
+(*lambdas*)
+  | Pair(Symbol("lambda"), Pair(args, body)) -> (
+      match args with
+      | Pair(car, cdr) -> let str_list = convert_pairs_to_str_list args in 
+        if (is_proper_list args) then LambdaSimple(str_list, Const(Void)(*parse_exp body*)) else 
+        let lst_without_last_element = remove_last_element str_list in 
+        let last_element = get_last_element str_list in 
+        LambdaOpt(lst_without_last_element, last_element, Const(Void)(*parse_exp body*))
+      | Symbol(str) -> LambdaOpt([], str, Const(Void)(*parse_exp body*))
+      | _ -> raise X_syntax_error
+  )
+
+  | _ -> raise X_syntax_error;;
 
 
 let tag_parse_expression sexpr = raise X_not_yet_implemented;;
