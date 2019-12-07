@@ -72,11 +72,23 @@ let reserved_word_list =
    "unquote-splicing"];;  
 
 (* work on the tag parser starts here *)
-let rec convert_pairs_to_str_list sexpr = match sexpr with
-  | Pair(car, cdr) -> List.append (convert_pairs_to_str_list car) (convert_pairs_to_str_list cdr)
+
+let rec convert_pairs_to_list sexpr = match sexpr with
+| Pair(car, cdr) -> List.append (convert_pairs_to_list car) (convert_pairs_to_list cdr)
+| Nil -> []
+| other -> [other]
+
+let rec convert_pairs_to_str_list sexpr = 
+(* match sexpr with *)
+  (* | Pair(car, cdr) -> List.append (convert_pairs_to_str_list car) (convert_pairs_to_str_list cdr)
   | Nil -> []
-  | Symbol(str) -> []@[str]
-  | _ -> []
+  | Symbol(str) -> [str]
+  | _ -> [] *)
+  let flat_list = convert_pairs_to_list sexpr in
+  List.map (fun e -> match e with
+  |Symbol(str)->str
+  |_ -> raise X_syntax_error)
+   flat_list;;
 
 let rec is_proper_list sexpr = match sexpr with
     | Pair(car, cdr) -> is_proper_list cdr
@@ -128,7 +140,14 @@ let rec parse_exp sexpr = match sexpr with
       | Symbol(str) -> LambdaOpt([], str, Const(Void)(*parse_exp body*))
       | _ -> raise X_syntax_error
   )
+  | Pair(Symbol "or", bool_pairs) -> let bool_list = List.map parse_exp (convert_pairs_to_list bool_pairs) in
+    Or(bool_list)
 
+
+  (*applic*)
+  | Pair(proc_sexpr, sexprs) -> let proc_expr = parse_exp proc_sexpr in
+  let exprs = List.map parse_exp (convert_pairs_to_list sexprs) in
+  Applic(proc_expr, exprs)
   | _ -> raise X_syntax_error;;
 
 
