@@ -7,5 +7,5 @@ open Tag_Parser;;
 (* let bla = read_sexpr "(lambda (a b c) )";; *)
 
 parse_exp (
-    Pair(Symbol "set!", Pair(Symbol "n", Pair(Pair(Symbol "+", Pair(Symbol "n", Pair(Number (Int 1), Nil))), Nil)))
-    );;
+Pair(Symbol "or", Pair(Pair(Bool false, Pair(Bool true, Nil)), Nil))
+);;

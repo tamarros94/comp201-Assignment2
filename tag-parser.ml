@@ -105,6 +105,12 @@ let rec remove_last_element lst = match lst with
     | car :: cdr -> List.append [car] (remove_last_element cdr)
     | [] -> [];;
 
+let tag_parse_var str = 
+      let is_reserved_word = List.mem str reserved_word_list in
+          if is_reserved_word then raise X_syntax_error else Var(str);;
+
+
+
 let rec parse_exp sexpr = match sexpr with
 (*constants*)
   | Bool(e) -> Const(Sexpr(Bool(e)))
@@ -120,29 +126,13 @@ let rec parse_exp sexpr = match sexpr with
   | TaggedSexpr(e,String(x)) -> Const(Sexpr(TaggedSexpr(e, String(x))))
   | TaggedSexpr(e,TagRef(x)) -> Const(Sexpr(TaggedSexpr(e, TagRef(x))))
 (*variables*)
-  | Symbol(e) -> (
-      let is_reserved_word = List.mem e reserved_word_list in
-          if is_reserved_word then raise X_syntax_error else Var(e))
-(*conditionals*)
-  | Pair(Symbol("if"), Pair(test, Pair(dit, Pair(Nil, Nil)))) ->
-        If(parse_exp test, parse_exp dit, Const(Void))
-  | Pair(Symbol("if"), Pair(test, Pair(dit, Pair(dif, Nil)))) ->
-        If(parse_exp test, parse_exp dit, parse_exp dif)
-
+  | Symbol(e) -> tag_parse_var e
+(*conditionals*)        
+  | Pair(Symbol("if"), Pair(test, Pair(dit, dif))) -> tag_parse_if test dit dif
 (*lambdas*)
-  | Pair(Symbol("lambda"), Pair(args, body)) -> (
-      match args with
-      | Pair(car, cdr) -> let str_list = convert_pairs_to_str_list args in 
-        if (is_proper_list args) then LambdaSimple(str_list, Const(Void)(*parse_exp body*)) else 
-        let lst_without_last_element = remove_last_element str_list in 
-        let last_element = get_last_element str_list in 
-        LambdaOpt(lst_without_last_element, last_element, Const(Void)(*parse_exp body*))
-      | Symbol(str) -> LambdaOpt([], str, Const(Void)(*parse_exp body*))
-      | _ -> raise X_syntax_error
-  )
+  | Pair(Symbol("lambda"), Pair(args, body)) -> tag_parse_lambda args body
   (*or*)
-  | Pair(Symbol "or", bool_pairs) -> let bool_list = List.map parse_exp (convert_pairs_to_list bool_pairs) in
-    Or(bool_list)
+  | Pair(Symbol "or", bool_pairs) -> tag_parse_or bool_pairs
   (*define*)
   | Pair(Symbol "define", Pair(name, Pair(sexpr, Nil))) -> Def((parse_exp name), (parse_exp sexpr))
   (*set*)
@@ -153,7 +143,26 @@ let rec parse_exp sexpr = match sexpr with
   | Pair(proc_sexpr, sexprs) -> let proc_expr = parse_exp proc_sexpr in
   let exprs = List.map parse_exp (convert_pairs_to_list sexprs) in
   Applic(proc_expr, exprs)
-  | _ -> raise X_syntax_error;;
+  | _ -> raise X_syntax_error
+  and tag_parse_if test dit dif = match dif with
+  | Nil -> If(parse_exp test, parse_exp dit, Const(Void))
+  | Pair(sexpr, Nil) -> If (parse_exp test, parse_exp dit, parse_exp sexpr)
+  |_ -> raise X_syntax_error
+  and tag_parse_lambda args body = match args with
+      | Pair(car, cdr) -> let str_list = convert_pairs_to_str_list args in 
+        if (is_proper_list args) then LambdaSimple(str_list, Const(Void)(*parse_exp body*)) else 
+        let lst_without_last_element = remove_last_element str_list in 
+        let last_element = get_last_element str_list in 
+        LambdaOpt(lst_without_last_element, last_element, Const(Void)(*parse_exp body*))
+      | Symbol(str) -> LambdaOpt([], str, Const(Void)(*parse_exp body*))
+      | _ -> raise X_syntax_error
+  and tag_parse_or bool_pairs = match bool_pairs with
+  | Pair(Nil, Nil) -> Const(Sexpr (Bool false))
+  | Pair (non_empty, Nil) -> let bool_list = List.map parse_exp (convert_pairs_to_list non_empty) in
+      Or(bool_list)
+  | _ -> raise X_syntax_error
+;;
+
 
 
 let tag_parse_expression sexpr = raise X_not_yet_implemented;;
