@@ -6,4 +6,6 @@ open Tag_Parser;;
 (* parse_exp (Pair ((Symbol "if"), Pair (Bool false, Pair (String "pass", Pair (Nil, Nil)))));; *)
 (* let bla = read_sexpr "(lambda (a b c) )";; *)
 
-parse_exp (Pair(Symbol "define", Pair(Symbol "a", Pair(Number (Int 5), Nil))));;
+parse_exp (
+    Pair(Symbol "set!", Pair(Symbol "n", Pair(Pair(Symbol "+", Pair(Symbol "n", Pair(Number (Int 1), Nil))), Nil)))
+    );;

@@ -140,9 +140,13 @@ let rec parse_exp sexpr = match sexpr with
       | Symbol(str) -> LambdaOpt([], str, Const(Void)(*parse_exp body*))
       | _ -> raise X_syntax_error
   )
+  (*or*)
   | Pair(Symbol "or", bool_pairs) -> let bool_list = List.map parse_exp (convert_pairs_to_list bool_pairs) in
     Or(bool_list)
+  (*define*)
   | Pair(Symbol "define", Pair(name, Pair(sexpr, Nil))) -> Def((parse_exp name), (parse_exp sexpr))
+  (*set*)
+  | Pair(Symbol "set!", Pair(name, Pair(sexpr, Nil))) -> Set((parse_exp name), (parse_exp sexpr))
 
 
   (*applic*)
