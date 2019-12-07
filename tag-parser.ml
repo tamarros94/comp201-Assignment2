@@ -113,6 +113,7 @@ let rec parse_exp sexpr = match sexpr with
   | Number(e) -> Const(Sexpr(Number(e)))
   | String(e) -> Const(Sexpr(String(e)))
   | Pair(Symbol("quote"), Pair(e, Nil)) -> Const(Sexpr(e))
+  | Pair(Symbol("quasiquote"), Pair(e, Nil)) -> parse_exp (expand_quasiquote e)
   | TagRef(e) -> Const(Sexpr(TagRef(e)))
   | TaggedSexpr(e,Pair(Symbol "quote", Pair(x, Nil))) -> Const(Sexpr(TaggedSexpr(e, Nil)))
   | TaggedSexpr(e,Bool(x)) -> Const(Sexpr(TaggedSexpr(e, Bool(x))))
@@ -134,17 +135,15 @@ let rec parse_exp sexpr = match sexpr with
   | Pair(Symbol "set!", Pair(name, Pair(sexpr, Nil))) -> Set((parse_exp name), (parse_exp sexpr))
   (*sequence*)
   | Pair(Symbol "begin", seq) -> tag_parse_seq_explicit seq
-
-
   (*applic*)
-  | Pair(proc_sexpr, sexprs) -> let proc_expr = parse_exp proc_sexpr in
-  let exprs = List.map parse_exp (convert_pairs_to_list sexprs) in
-  Applic(proc_expr, exprs)
+  | Pair(proc_sexpr, sexprs) -> tag_parse_applic proc_sexpr sexprs
   | _ -> raise X_syntax_error
+
   and tag_parse_if test dit dif = match dif with
   | Nil -> If(parse_exp test, parse_exp dit, Const(Void))
   | Pair(sexpr, Nil) -> If (parse_exp test, parse_exp dit, parse_exp sexpr)
   |_ -> raise X_syntax_error
+
   and tag_parse_lambda args body =
   let body_seq = (tag_parse_seq_implicit body) in
    match args with
@@ -155,20 +154,42 @@ let rec parse_exp sexpr = match sexpr with
         LambdaOpt(lst_without_last_element, last_element, body_seq)
       | Symbol(str) -> LambdaOpt([], str, body_seq)
       | _ -> raise X_syntax_error
+
   and tag_parse_or bool_pairs = match bool_pairs with
   | Pair(Nil, Nil) -> Const(Sexpr (Bool false))
   | Pair (non_empty, Nil) -> let bool_list = List.map parse_exp (convert_pairs_to_list non_empty) in
       Or(bool_list)
   | _ -> raise X_syntax_error
+
   and tag_parse_seq_explicit seq = match seq with 
   | Nil -> Const Void
   | Pair(a, Nil) -> parse_exp a
   | Pair(a, b) -> let seq_expr = List.map parse_exp (convert_pairs_to_list seq) in Seq(seq_expr)
   | _ -> raise X_syntax_error
+  
    and tag_parse_seq_implicit seq = match seq with 
   | Pair(a, Nil) -> parse_exp a
   | Pair(a, b) -> let seq_expr = List.map parse_exp (convert_pairs_to_list seq) in Seq(seq_expr)
   | _ -> raise X_syntax_error
+
+  and tag_parse_applic proc_sexpr sexprs =   
+    let proc_expr = parse_exp proc_sexpr in
+    let exprs = List.map parse_exp (convert_pairs_to_list sexprs) in
+    Applic(proc_expr, exprs)
+
+  and expand_quasiquote e = match e with
+  | Pair(Symbol("unquote"), Pair(sexpr, Nil)) -> sexpr
+  | Pair(Symbol("unquote-splicing"), Pair(sexpr, Nil)) -> raise X_syntax_error
+  | Pair(Pair(Symbol("unquote-splicing"), Pair(sexpr, Nil)), x) -> Pair(Symbol("append"),Pair(sexpr,Pair((expand_quasiquote x),Nil)))
+  | Pair(x, Pair(Symbol("unquote-splicing"), Pair(sexpr, Nil))) -> Pair(Symbol("cons"),Pair((expand_quasiquote x),Pair(sexpr,Nil)))
+  | Pair(x, y) -> Pair(Symbol("cons"),Pair((expand_quasiquote x), Pair((expand_quasiquote y),Nil)))
+  | Nil -> Pair(Symbol("quote"), Pair(Nil, Nil))
+  | Symbol(x) -> Pair(Symbol("quote"), Pair(Symbol(x), Nil))
+  | _ -> raise X_syntax_error
+    
+
+
+
 ;;
 
 
