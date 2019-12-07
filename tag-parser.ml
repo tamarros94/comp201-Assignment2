@@ -74,16 +74,11 @@ let reserved_word_list =
 (* work on the tag parser starts here *)
 
 let rec convert_pairs_to_list sexpr = match sexpr with
-| Pair(car, cdr) -> List.append (convert_pairs_to_list car) (convert_pairs_to_list cdr)
+| Pair(car, cdr) -> List.append [car] (convert_pairs_to_list cdr)
 | Nil -> []
 | other -> [other]
 
 let rec convert_pairs_to_str_list sexpr = 
-(* match sexpr with *)
-  (* | Pair(car, cdr) -> List.append (convert_pairs_to_str_list car) (convert_pairs_to_str_list cdr)
-  | Nil -> []
-  | Symbol(str) -> [str]
-  | _ -> [] *)
   let flat_list = convert_pairs_to_list sexpr in
   List.map (fun e -> match e with
   |Symbol(str)->str
@@ -137,6 +132,8 @@ let rec parse_exp sexpr = match sexpr with
   | Pair(Symbol "define", Pair(name, Pair(sexpr, Nil))) -> Def((parse_exp name), (parse_exp sexpr))
   (*set*)
   | Pair(Symbol "set!", Pair(name, Pair(sexpr, Nil))) -> Set((parse_exp name), (parse_exp sexpr))
+  (*sequence*)
+  | Pair(Symbol "begin", seq) -> tag_parse_seq_explicit seq
 
 
   (*applic*)
@@ -148,18 +145,29 @@ let rec parse_exp sexpr = match sexpr with
   | Nil -> If(parse_exp test, parse_exp dit, Const(Void))
   | Pair(sexpr, Nil) -> If (parse_exp test, parse_exp dit, parse_exp sexpr)
   |_ -> raise X_syntax_error
-  and tag_parse_lambda args body = match args with
+  and tag_parse_lambda args body =
+  let body_seq = (tag_parse_seq_implicit body) in
+   match args with
       | Pair(car, cdr) -> let str_list = convert_pairs_to_str_list args in 
-        if (is_proper_list args) then LambdaSimple(str_list, Const(Void)(*parse_exp body*)) else 
+        if (is_proper_list args) then LambdaSimple(str_list, body_seq) else 
         let lst_without_last_element = remove_last_element str_list in 
         let last_element = get_last_element str_list in 
-        LambdaOpt(lst_without_last_element, last_element, Const(Void)(*parse_exp body*))
-      | Symbol(str) -> LambdaOpt([], str, Const(Void)(*parse_exp body*))
+        LambdaOpt(lst_without_last_element, last_element, body_seq)
+      | Symbol(str) -> LambdaOpt([], str, body_seq)
       | _ -> raise X_syntax_error
   and tag_parse_or bool_pairs = match bool_pairs with
   | Pair(Nil, Nil) -> Const(Sexpr (Bool false))
   | Pair (non_empty, Nil) -> let bool_list = List.map parse_exp (convert_pairs_to_list non_empty) in
       Or(bool_list)
+  | _ -> raise X_syntax_error
+  and tag_parse_seq_explicit seq = match seq with 
+  | Nil -> Const Void
+  | Pair(a, Nil) -> parse_exp a
+  | Pair(a, b) -> let seq_expr = List.map parse_exp (convert_pairs_to_list seq) in Seq(seq_expr)
+  | _ -> raise X_syntax_error
+   and tag_parse_seq_implicit seq = match seq with 
+  | Pair(a, Nil) -> parse_exp a
+  | Pair(a, b) -> let seq_expr = List.map parse_exp (convert_pairs_to_list seq) in Seq(seq_expr)
   | _ -> raise X_syntax_error
 ;;
 
