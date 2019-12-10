@@ -108,6 +108,7 @@ let tag_parse_var str =
 
 let rec parse_exp sexpr = match sexpr with
 (*constants*)
+  | Nil -> Const(Void)
   | Bool(e) -> Const(Sexpr(Bool(e)))
   | Char(e) -> Const(Sexpr(Char(e)))
   | Number(e) -> Const(Sexpr(Number(e)))
@@ -125,6 +126,8 @@ let rec parse_exp sexpr = match sexpr with
   | Symbol(e) -> tag_parse_var e
 (*conditionals*)        
   | Pair(Symbol("if"), Pair(test, Pair(dit, dif))) -> tag_parse_if test dit dif
+
+  | Pair(Symbol("cond"), ribs) -> parse_exp (expand_cond sexpr)
 (*lambdas*)
   | Pair(Symbol("lambda"), Pair(args, body)) -> tag_parse_lambda args body
   (*or*)
@@ -186,7 +189,19 @@ let rec parse_exp sexpr = match sexpr with
   | Nil -> Pair(Symbol("quote"), Pair(Nil, Nil))
   | Symbol(x) -> Pair(Symbol("quote"), Pair(Symbol(x), Nil))
   | _ -> raise X_syntax_error
-    
+
+  and expand_cond cond_sexpr = match cond_sexpr with
+  (*3rd form*)
+  | Pair(Symbol "cond", Pair(Pair(Symbol "else", Pair(seq, Nil)), _)) -> Pair(Symbol("begin"),seq)
+  (*2nd form*)
+  | Pair(Symbol "cond", Pair(Pair(test, Pair(Symbol("=>"), Pair(expr_f, Nil))), Nil)) -> Pair(Symbol "let", Pair(Pair(Pair(Symbol "value", Pair(test, Nil)), Pair(Pair(Symbol "f", Pair(Pair(Symbol "lambda", Pair(Nil, Pair(expr_f, Nil))), Nil)), Pair(Pair(Symbol "cont", Pair(Pair(Symbol "lambda", Pair(Nil, Nil)), Nil)), Nil))), Pair(Pair(Symbol "if", Pair(Symbol "value", Pair(Pair(Pair(Symbol "f", Nil), Pair(Symbol "value", Nil)), Pair(Pair(Symbol "cont", Nil), Nil)))), Nil))) 
+  | Pair(Symbol "cond", Pair(Pair(test, Pair(Symbol("=>"), Pair(expr_f, Nil))), other_ribs)) -> let expanded_ribs = (expand_cond (Pair(Symbol("cond"),other_ribs))) in
+   Pair(Symbol "let", Pair(Pair(Pair(Symbol "value", Pair(test, Nil)), Pair(Pair(Symbol "f", Pair(Pair(Symbol "lambda", Pair(Nil, Pair(expr_f, Nil))), Nil)), Pair(Pair(Symbol "cont", Pair(Pair(Symbol "lambda", Pair(Nil, Pair(expanded_ribs, Nil))), Nil)), Nil))), Pair(Pair(Symbol "if", Pair(Symbol "value", Pair(Pair(Pair(Symbol "f", Nil), Pair(Symbol "value", Nil)), Pair(Pair(Symbol "cont", Nil), Nil)))), Nil))) 
+  (*1st form*)
+  | Pair(Symbol "cond", Pair(Pair(test, seq), Nil)) -> Pair(Symbol("if"), Pair(test, Pair(Pair(Symbol("begin"),seq), Nil)))
+  | Pair(Symbol "cond", Pair(Pair(test, seq), ribs)) -> let expanded_ribs = (expand_cond (Pair(Symbol("cond"), ribs))) in
+    Pair(Pair(Symbol("if"), Pair(test, Pair(Pair(Symbol("begin"),seq), Nil))), Pair(expanded_ribs, Nil))
+  | _ -> raise X_syntax_error  
 
 
 

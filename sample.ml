@@ -7,7 +7,8 @@ open Tag_Parser;;
 (* let bla = read_sexpr "(lambda (a b c) )";; *)
 
 parse_exp (
-Pair(Symbol "quasiquote", Pair(Pair(Symbol "lambda", Pair(Pair(Symbol "a", Pair(Symbol "b", Nil)), Pair(Pair(Symbol "unquote", Pair(Pair(Symbol "+", Pair(Symbol "a", Pair(Symbol "b", Nil))), Nil)), Nil))), Nil))
-);;
+Pair(Symbol "cond", Pair(Pair(Symbol "else", Pair(Pair(Nil, Pair(Nil, Nil)), Nil)), Nil)));;
 
-(* (Var "+", [Var "a"; Var "b"] *)
+
+
+
