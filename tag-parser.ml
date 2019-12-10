@@ -104,7 +104,17 @@ let tag_parse_var str =
       let is_reserved_word = List.mem str reserved_word_list in
           if is_reserved_word then raise X_syntax_error else Var(str);;
 
+let rec ribs_to_var_list ribs = match ribs with
+| Pair(Symbol v, _) -> Pair(Symbol v, Nil)
+| Pair(Pair(Symbol v, _), rest) -> Pair(Symbol v, (ribs_to_var_list rest))
+| Nil -> Nil
+| _ -> raise X_syntax_error;;
 
+let rec ribs_to_val_list ribs = match ribs with
+| Pair(Symbol _,Pair( sexpr , Nil)) -> Pair(sexpr, Nil)
+| Pair(Pair(Symbol _,Pair(sexpr,Nil)), rest) -> Pair(sexpr, (ribs_to_val_list rest))
+| Nil -> Nil
+| _ -> raise X_syntax_error;;
 
 let rec parse_exp sexpr = match sexpr with
 (*constants*)
@@ -130,6 +140,7 @@ let rec parse_exp sexpr = match sexpr with
   | Pair(Symbol("cond"), ribs) -> parse_exp (expand_cond sexpr)
 (*lambdas*)
   | Pair(Symbol("lambda"), Pair(args, body)) -> tag_parse_lambda args body
+  | Pair(Symbol "let", Pair(ribs, body)) ->  parse_exp (expand_let ribs body)
   (*or*)
   | Pair(Symbol "or", bool_pairs) -> tag_parse_or bool_pairs
   (*define*)
@@ -203,7 +214,11 @@ let rec parse_exp sexpr = match sexpr with
     Pair(Pair(Symbol("if"), Pair(test, Pair(Pair(Symbol("begin"),seq), Nil))), Pair(expanded_ribs, Nil))
   | _ -> raise X_syntax_error  
 
-
+  and expand_let ribs body = 
+  let var_list = ribs_to_var_list ribs in 
+  let val_list = ribs_to_val_list ribs in
+  let lambda_sexpr = Pair(Symbol("lambda"), Pair(var_list, body)) in
+  Pair(lambda_sexpr, val_list)
 
 ;;
 
