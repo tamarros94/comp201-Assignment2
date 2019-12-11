@@ -125,6 +125,20 @@ let rec ribs_to_val_list ribs = match ribs with
 | Nil -> Nil
 | _ -> raise X_syntax_error;;
 
+let rec change_to_whatever ribs = match ribs with
+| Pair(Symbol e,Pair( sexpr , Nil)) ->  Pair(Symbol e, Pair(Symbol("quote"), Pair(String("whatever"), Nil)))
+| Pair(Pair(Symbol e,Pair(sexpr,Nil)), rest) -> 
+  Pair(Pair(Symbol e,Pair(Pair(Symbol("quote"), Pair(String("whatever"), Nil)),Nil)), (change_to_whatever rest))
+| Nil -> Nil
+| _ -> raise X_syntax_error;;
+
+let rec wrap_ribs_in_set ribs = match ribs with
+|Pair(Pair(var,Pair(sexpr_val, Nil)),Nil) -> Pair(Symbol "set!", Pair(var, Pair(sexpr_val, Nil)))
+|Pair(Pair(var,Pair(sexpr_val,Nil)), rest) -> Pair(Pair(Symbol "set!", Pair(var, Pair(sexpr_val, Nil))), (wrap_ribs_in_set rest))
+| Nil -> Nil
+| _ -> raise X_syntax_error;;
+
+
 let get_first_pair pairs = match pairs with
     | Nil -> Nil
     | Pair(car, cdr) -> car
@@ -159,8 +173,9 @@ let rec parse_exp sexpr = match sexpr with
   | Pair(Symbol("cond"), ribs) -> parse_exp (expand_cond ribs)
 (*lambdas*)
   | Pair(Symbol("lambda"), Pair(args, body)) -> tag_parse_lambda args body
-  | Pair(Symbol "let", Pair(ribs, body)) -> parse_exp (expand_let ribs body)
+  | Pair(Symbol "let", Pair(ribs, body)) -> Const(Sexpr(expand_let ribs body))
   | Pair(Symbol "let*", Pair(ribs, body)) -> parse_exp (expand_let_star ribs body)
+  | Pair(Symbol "letrec", Pair(ribs, body)) -> parse_exp (expand_letrec ribs body)
   (* Const(Sexpr((expand_let ribs body))) *)
   (*or*)
   | Pair(Symbol "or", bool_pairs) -> tag_parse_or bool_pairs
@@ -211,8 +226,9 @@ let rec parse_exp sexpr = match sexpr with
 
   and tag_parse_applic proc_sexpr sexprs =   
     let proc_expr = parse_exp proc_sexpr in
-    let exprs = List.map parse_exp (convert_pairs_to_list sexprs) in
-    (* [Const(Sexpr(sexprs))] in *)    
+    let exprs = 
+    (* List.map parse_exp (convert_pairs_to_list sexprs) in *)
+    [Const(Sexpr(sexprs))] in    
     Applic(proc_expr, exprs)
 
   and expand_quasiquote e = match e with
@@ -268,15 +284,23 @@ let rec parse_exp sexpr = match sexpr with
     let val_list = ribs_to_val_list ribs in
     handle_let_star_body ribs body var_list val_list
 
-(*
-Pair(Bool true, Pair(Bool true, Pair(Bool true, Pair(Bool false, Nil))))
-*)
+  and expand_letrec ribs body = 
+    let new_ribs = change_to_whatever ribs in
+    let set_body = wrap_ribs_in_set ribs in
+    let l_body = Pair(Symbol "let", Pair(Nil, Pair(body, Nil))) in
+    let new_body = Pair(set_body, Pair(l_body, Nil)) in
+    let complete_form = Pair(Symbol "let", Pair(new_ribs,Pair(new_body,Nil))) in
+    complete_form
+
+
+
   and expand_and bool_pairs = match bool_pairs with
   | Nil -> Bool(true)
   | Pair(expr,Nil) -> expr
   | Pair(expr1, rest) -> let dit = (expand_and rest) in
     Pair(Symbol("if"), Pair(expr1, Pair(dit, Pair(Bool(false), Nil))))
   | _ -> raise X_syntax_error
+
 ;;
 
 
