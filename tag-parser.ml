@@ -137,10 +137,11 @@ let rec parse_exp sexpr = match sexpr with
 (*conditionals*)        
   | Pair(Symbol("if"), Pair(test, Pair(dit, dif))) -> tag_parse_if test dit dif
 
-  | Pair(Symbol("cond"), ribs) -> parse_exp (expand_cond sexpr)
+  | Pair(Symbol("cond"), ribs) -> parse_exp (expand_cond ribs)
 (*lambdas*)
   | Pair(Symbol("lambda"), Pair(args, body)) -> tag_parse_lambda args body
-  | Pair(Symbol "let", Pair(ribs, body)) ->  parse_exp (expand_let ribs body)
+  | Pair(Symbol "let", Pair(ribs, body)) -> parse_exp (expand_let ribs body)
+  (* Const(Sexpr((expand_let ribs body))) *)
   (*or*)
   | Pair(Symbol "or", bool_pairs) -> tag_parse_or bool_pairs
   (*define*)
@@ -167,6 +168,7 @@ let rec parse_exp sexpr = match sexpr with
         let last_element = get_last_element str_list in 
         LambdaOpt(lst_without_last_element, last_element, body_seq)
       | Symbol(str) -> LambdaOpt([], str, body_seq)
+      | Nil -> LambdaSimple([], body_seq)
       | _ -> raise X_syntax_error
 
   and tag_parse_or bool_pairs = match bool_pairs with
@@ -188,7 +190,8 @@ let rec parse_exp sexpr = match sexpr with
 
   and tag_parse_applic proc_sexpr sexprs =   
     let proc_expr = parse_exp proc_sexpr in
-    let exprs = List.map parse_exp (convert_pairs_to_list sexprs) in
+    let exprs = [Const(Sexpr(sexprs))] in
+    (* List.map parse_exp (convert_pairs_to_list sexprs) in *)
     Applic(proc_expr, exprs)
 
   and expand_quasiquote e = match e with
@@ -201,17 +204,22 @@ let rec parse_exp sexpr = match sexpr with
   | Symbol(x) -> Pair(Symbol("quote"), Pair(Symbol(x), Nil))
   | _ -> raise X_syntax_error
 
-  and expand_cond cond_sexpr = match cond_sexpr with
+  and expand_cond ribs = match ribs with
   (*3rd form*)
-  | Pair(Symbol "cond", Pair(Pair(Symbol "else", Pair(seq, Nil)), _)) -> Pair(Symbol("begin"),seq)
+  | Pair(Pair(Symbol "else", Pair(seq, Nil)), _) -> Pair(Symbol("begin"),seq)
   (*2nd form*)
-  | Pair(Symbol "cond", Pair(Pair(test, Pair(Symbol("=>"), Pair(expr_f, Nil))), Nil)) -> Pair(Symbol "let", Pair(Pair(Pair(Symbol "value", Pair(test, Nil)), Pair(Pair(Symbol "f", Pair(Pair(Symbol "lambda", Pair(Nil, Pair(expr_f, Nil))), Nil)), Pair(Pair(Symbol "cont", Pair(Pair(Symbol "lambda", Pair(Nil, Nil)), Nil)), Nil))), Pair(Pair(Symbol "if", Pair(Symbol "value", Pair(Pair(Pair(Symbol "f", Nil), Pair(Symbol "value", Nil)), Pair(Pair(Symbol "cont", Nil), Nil)))), Nil))) 
-  | Pair(Symbol "cond", Pair(Pair(test, Pair(Symbol("=>"), Pair(expr_f, Nil))), other_ribs)) -> let expanded_ribs = (expand_cond (Pair(Symbol("cond"),other_ribs))) in
+  | Pair(Pair(test, Pair(Symbol("=>"), Pair(expr_f, Nil))), Nil) -> 
+      Pair(Symbol "let", Pair(Pair(Pair(Symbol "value", Pair(test, Nil)),
+       Pair(Pair(Symbol "f", Pair(Pair(Symbol "lambda", Pair(Nil, Pair(expr_f, Nil))), Nil)), Nil)),
+        Pair(Pair(Symbol "if", Pair(Symbol "value", Pair(Pair(Pair(Symbol "f", Nil),
+         Pair(Symbol "value", Nil)), Nil))), Nil))) 
+
+  | Pair(Pair(test, Pair(Symbol("=>"), Pair(expr_f, Nil))), rest) -> let expanded_ribs = (expand_cond rest) in
    Pair(Symbol "let", Pair(Pair(Pair(Symbol "value", Pair(test, Nil)), Pair(Pair(Symbol "f", Pair(Pair(Symbol "lambda", Pair(Nil, Pair(expr_f, Nil))), Nil)), Pair(Pair(Symbol "cont", Pair(Pair(Symbol "lambda", Pair(Nil, Pair(expanded_ribs, Nil))), Nil)), Nil))), Pair(Pair(Symbol "if", Pair(Symbol "value", Pair(Pair(Pair(Symbol "f", Nil), Pair(Symbol "value", Nil)), Pair(Pair(Symbol "cont", Nil), Nil)))), Nil))) 
   (*1st form*)
-  | Pair(Symbol "cond", Pair(Pair(test, seq), Nil)) -> Pair(Symbol("if"), Pair(test, Pair(Pair(Symbol("begin"),seq), Nil)))
-  | Pair(Symbol "cond", Pair(Pair(test, seq), ribs)) -> let expanded_ribs = (expand_cond (Pair(Symbol("cond"), ribs))) in
-    Pair(Pair(Symbol("if"), Pair(test, Pair(Pair(Symbol("begin"),seq), Nil))), Pair(expanded_ribs, Nil))
+  | Pair(Pair(test, seq), Nil) -> Pair(Symbol("if"), Pair(test, Pair(Pair(Symbol("begin"),seq), Nil)))
+  | Pair(Pair(test, seq), rest) -> let expanded_ribs = (expand_cond rest) in
+    (Pair(Symbol("if"), Pair(test , Pair(Pair(Symbol("begin"),seq) , Pair(expanded_ribs , Nil)))))
   | _ -> raise X_syntax_error  
 
   and expand_let ribs body = 
