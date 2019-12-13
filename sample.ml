@@ -6,7 +6,6 @@ open Tag_Parser;;
 
 
 parse_exp (
-Pair(Symbol "letrec", Pair(Pair(Pair(Symbol "a", Pair(Number (Int 1), Nil)), Pair(Pair(Symbol "b", Pair(Number (Int 2), Nil)), Nil)), Pair(Symbol "body", Nil)))
+Pair(Symbol "define", Pair(Pair(Symbol "a", Symbol "x"), Pair(Symbol "x", Nil)))
 );;
-
 (* convert_pairs_to_list  *)

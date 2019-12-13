@@ -126,16 +126,16 @@ let rec ribs_to_val_list ribs = match ribs with
 | _ -> raise X_syntax_error;;
 
 let rec change_to_whatever ribs = match ribs with
-| Pair(Symbol e,Pair( sexpr , Nil)) ->  Pair(Symbol e, Pair(Symbol("quote"), Pair(String("whatever"), Nil)))
+| Pair(Symbol e,Pair( sexpr , Nil)) ->  Pair(Symbol e, Pair(Symbol("quote"), Pair(Symbol("whatever"), Nil)))
 | Pair(Pair(Symbol e,Pair(sexpr,Nil)), rest) -> 
-  Pair(Pair(Symbol e,Pair(Pair(Symbol("quote"), Pair(String("whatever"), Nil)),Nil)), (change_to_whatever rest))
+  Pair(Pair(Symbol e,Pair(Pair(Symbol("quote"), Pair(Symbol("whatever"), Nil)),Nil)), (change_to_whatever rest))
 | Nil -> Nil
 | _ -> raise X_syntax_error;;
 
-let rec wrap_ribs_in_set ribs = match ribs with
-|Pair(Pair(var,Pair(sexpr_val, Nil)),Nil) -> Pair(Symbol "set!", Pair(var, Pair(sexpr_val, Nil)))
-|Pair(Pair(var,Pair(sexpr_val,Nil)), rest) -> Pair(Pair(Symbol "set!", Pair(var, Pair(sexpr_val, Nil))), (wrap_ribs_in_set rest))
-| Nil -> Nil
+let rec wrap_ribs_in_set ribs body = match ribs with
+|Pair(Pair(var,Pair(sexpr_val, Nil)),Nil) -> Pair(Pair(Symbol "set!", Pair(var, Pair(sexpr_val, Nil))), Pair(Pair(Symbol "let", Pair(Nil, body)), Nil))
+|Pair(Pair(var,Pair(sexpr_val,Nil)), rest) -> Pair(Pair(Symbol "set!", Pair(var, Pair(sexpr_val, Nil))), (wrap_ribs_in_set rest body))
+|Nil -> Pair(Pair(Symbol "let", Pair(Nil, body)), Nil)
 | _ -> raise X_syntax_error;;
 
 
@@ -173,13 +173,15 @@ let rec parse_exp sexpr = match sexpr with
   | Pair(Symbol("cond"), ribs) -> parse_exp (expand_cond ribs)
 (*lambdas*)
   | Pair(Symbol("lambda"), Pair(args, body)) -> tag_parse_lambda args body
-  | Pair(Symbol "let", Pair(ribs, body)) -> Const(Sexpr(expand_let ribs body))
+  | Pair(Symbol "let", Pair(ribs, body)) -> parse_exp (expand_let ribs body)
   | Pair(Symbol "let*", Pair(ribs, body)) -> parse_exp (expand_let_star ribs body)
   | Pair(Symbol "letrec", Pair(ribs, body)) -> parse_exp (expand_letrec ribs body)
   (* Const(Sexpr((expand_let ribs body))) *)
   (*or*)
   | Pair(Symbol "or", bool_pairs) -> tag_parse_or bool_pairs
   | Pair(Symbol "and", bool_pairs) -> parse_exp (expand_and bool_pairs)
+  (*MIT define*)
+  | Pair(Symbol "define", Pair(Pair(name,args),Pair(body,Nil))) -> parse_exp (expand_mit_def name args body)
   (*define*)
   | Pair(Symbol "define", Pair(name, Pair(sexpr, Nil))) -> Def((parse_exp name), (parse_exp sexpr))
   (*set*)
@@ -227,12 +229,13 @@ let rec parse_exp sexpr = match sexpr with
   and tag_parse_applic proc_sexpr sexprs =   
     let proc_expr = parse_exp proc_sexpr in
     let exprs = 
-    (* List.map parse_exp (convert_pairs_to_list sexprs) in *)
-    [Const(Sexpr(sexprs))] in    
+    List.map parse_exp (convert_pairs_to_list sexprs) in
+    (* [Const(Sexpr(sexprs))] in     *)
     Applic(proc_expr, exprs)
 
   and expand_quasiquote e = match e with
-  | Pair(Symbol("unquote"), Pair(sexpr, Nil)) -> sexpr
+  | Pair(Symbol("unquote"), Pair(sexpr, Nil)) -> Pair(Symbol "define", Pair(Pair(Symbol "square", Pair(Symbol "y", Nil)), Pair(Pair(Symbol "*", Pair(Symbol "x", Pair(Symbol "x", Nil))), Nil))) 
+
   | Pair(Symbol("unquote-splicing"), Pair(sexpr, Nil)) -> raise X_syntax_error
   | Pair(Pair(Symbol("unquote-splicing"), Pair(sexpr, Nil)), x) -> Pair(Symbol("append"),Pair(sexpr,Pair((expand_quasiquote x),Nil)))
   | Pair(x, Pair(Symbol("unquote-splicing"), Pair(sexpr, Nil))) -> Pair(Symbol("cons"),Pair((expand_quasiquote x),Pair(sexpr,Nil)))
@@ -286,13 +289,11 @@ let rec parse_exp sexpr = match sexpr with
 
   and expand_letrec ribs body = 
     let new_ribs = change_to_whatever ribs in
-    let set_body = wrap_ribs_in_set ribs in
-    let l_body = Pair(Symbol "let", Pair(Nil, Pair(body, Nil))) in
-    let new_body = Pair(set_body, Pair(l_body, Nil)) in
-    let complete_form = Pair(Symbol "let", Pair(new_ribs,Pair(new_body,Nil))) in
-    complete_form
-
-
+    let set_body = wrap_ribs_in_set ribs body in
+    (* let l_body = Pair(Symbol "let", Pair(Nil, body)) in *)
+    let form = Pair(Symbol "let", Pair(new_ribs,set_body)) in
+    (* let complete_form = Pair(Symbol "let", Pair(new_ribs,new_body)) in *)
+    form
 
   and expand_and bool_pairs = match bool_pairs with
   | Nil -> Bool(true)
@@ -301,6 +302,16 @@ let rec parse_exp sexpr = match sexpr with
     Pair(Symbol("if"), Pair(expr1, Pair(dit, Pair(Bool(false), Nil))))
   | _ -> raise X_syntax_error
 
+  and expand_mit_def name args body = 
+  (* let rec add_body_to_args rec_args rec_body = match rec_args with
+  | Pair(Symbol str, Nil) -> Pair(Symbol str, Pair(rec_body,Nil))
+  | Pair(Symbol str, rest) -> Pair(Symbol str, add_body_to_args rest rec_body)
+  | Nil -> Pair(rec_body,Nil)
+  | _ -> raise X_syntax_error in *)
+  
+  (* let lambda_form = Pair(Symbol "lambda", (add_body_to_args args body)) in *)
+  let lambda_form = Pair(Symbol "lambda", Pair(args, Pair(body, Nil))) in
+  let form = Pair(Symbol "define", Pair(name, Pair(lambda_form,Nil))) in form
 ;;
 
 
