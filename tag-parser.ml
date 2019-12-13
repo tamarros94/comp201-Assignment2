@@ -189,7 +189,7 @@ let rec parse_exp sexpr = match sexpr with
   (*sequence*)
   | Pair(Symbol "begin", seq) -> tag_parse_seq_explicit seq
   (*applic*)
-  | Pair(proc_sexpr, sexprs) -> tag_parse_applic proc_sexpr sexprs
+  | Pair(proc_sexpr, sexprs) ->  tag_parse_applic proc_sexpr sexprs
   | _ -> raise X_syntax_error
 
   and tag_parse_if test dit dif = match dif with
@@ -246,7 +246,7 @@ let rec parse_exp sexpr = match sexpr with
 
   and expand_cond ribs = match ribs with
   (*3rd form*)
-  | Pair(Pair(Symbol "else", Pair(seq, Nil)), _) -> Pair(Symbol("begin"),seq)
+  | Pair(Pair(Symbol "else",seq), _) -> (Pair(Symbol("begin"),seq))
   (*2nd form*)
   | Pair(Pair(test, Pair(Symbol("=>"), Pair(expr_f, Nil))), Nil) -> 
       Pair(Symbol "let", Pair(Pair(Pair(Symbol "value", Pair(test, Nil)),
@@ -255,7 +255,11 @@ let rec parse_exp sexpr = match sexpr with
          Pair(Symbol "value", Nil)), Nil))), Nil))) 
 
   | Pair(Pair(test, Pair(Symbol("=>"), Pair(expr_f, Nil))), rest) -> let expanded_ribs = (expand_cond rest) in
-   Pair(Symbol "let", Pair(Pair(Pair(Symbol "value", Pair(test, Nil)), Pair(Pair(Symbol "f", Pair(Pair(Symbol "lambda", Pair(Nil, Pair(expr_f, Nil))), Nil)), Pair(Pair(Symbol "cont", Pair(Pair(Symbol "lambda", Pair(Nil, Pair(expanded_ribs, Nil))), Nil)), Nil))), Pair(Pair(Symbol "if", Pair(Symbol "value", Pair(Pair(Pair(Symbol "f", Nil), Pair(Symbol "value", Nil)), Pair(Pair(Symbol "cont", Nil), Nil)))), Nil))) 
+   Pair(Symbol "let", Pair(Pair(Pair(Symbol "value", Pair(test, Nil)), 
+   Pair(Pair(Symbol "f", Pair(Pair(Symbol "lambda", Pair(Nil, Pair(expr_f, Nil))), Nil)),
+    Pair(Pair(Symbol "rest", Pair(Pair(Symbol "lambda", Pair(Nil, Pair(expanded_ribs, Nil))), Nil)), Nil))),
+     Pair(Pair(Symbol "if", Pair(Symbol "value", Pair(Pair(Pair(Symbol "f", Nil), Pair(Symbol "value", Nil)),
+      Pair(Pair(Symbol "rest", Nil), Nil)))), Nil))) 
   (*1st form*)
   | Pair(Pair(test, seq), Nil) -> Pair(Symbol("if"), Pair(test, Pair(Pair(Symbol("begin"),seq), Nil)))
   | Pair(Pair(test, seq), rest) -> let expanded_ribs = (expand_cond rest) in
