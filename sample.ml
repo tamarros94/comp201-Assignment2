@@ -6,5 +6,11 @@ open Tag_Parser;;
 
 
 tag_parse_expression (
-Pair(Symbol "cond", Pair(Pair(Symbol "x", Pair(Pair(Symbol "begin", Pair(Symbol "x", Nil)), Nil)), Pair(Pair(Pair(Symbol "lambda", Pair(Pair(Symbol "x", Nil), Pair(Symbol "x", Nil))), Pair(Symbol "=>", Pair(Pair(Symbol "cond", Pair(Pair(Symbol "else", Pair(Pair(Symbol "lambda", Pair(Pair(Symbol "x", Nil), Pair(Pair(Symbol "x", Nil), Nil))), Nil)), Nil)), Nil))), Pair(Pair(Symbol "else", Pair(Symbol "value", Nil)), Nil))))
+Pair (Symbol "lambda",
+ Pair (Pair (Symbol "x", Pair (Symbol "y", Nil)),
+  Pair (Pair (Symbol "+", Pair (Number (Int 1), Pair (Number (Int 2), Nil))),
+   Nil)))
 );;
+
+(* read_sexpr "(lambda (x x) (+ 1 2))" *)
+

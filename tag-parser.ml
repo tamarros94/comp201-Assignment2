@@ -85,6 +85,15 @@ let rec convert_pairs_to_str_list sexpr =
   |_ -> raise X_syntax_error)
    flat_list;;
 
+let rec check_arg_reoccurrence lst = 
+  let rec check_if_args_exists arg rest = match rest with
+  | car :: cdr -> if car = arg then true else check_if_args_exists arg cdr
+  | [] -> false in
+match lst with
+| car :: cdr -> if (check_if_args_exists car cdr) then true else check_arg_reoccurrence cdr
+| [] -> false
+
+
 let rec is_proper_list sexpr = match sexpr with
     | Pair(car, cdr) -> is_proper_list cdr
     | Nil -> true
@@ -159,7 +168,7 @@ let rec parse_exp sexpr = match sexpr with
   | Pair(Symbol("quote"), Pair(e, Nil)) -> Const(Sexpr(e))
   | Pair(Symbol("quasiquote"), Pair(e, Nil)) -> parse_exp (expand_quasiquote e)
   | TagRef(e) -> Const(Sexpr(TagRef(e)))
-  | TaggedSexpr(e,Pair(Symbol "quote", Pair(x, Nil))) -> Const(Sexpr(TaggedSexpr(e, Nil)))
+  | TaggedSexpr(e,Pair(Symbol "quote", Pair(x, Nil))) -> Const(Sexpr(TaggedSexpr(e, x)))
   | TaggedSexpr(e,Bool(x)) -> Const(Sexpr(TaggedSexpr(e, Bool(x))))
   | TaggedSexpr(e,Char(x)) -> Const(Sexpr(TaggedSexpr(e, Char(x))))
   | TaggedSexpr(e,Number(x)) -> Const(Sexpr(TaggedSexpr(e, Number(x))))
@@ -201,6 +210,7 @@ let rec parse_exp sexpr = match sexpr with
   let body_seq = (tag_parse_seq_implicit body) in
    match args with
       | Pair(car, cdr) -> let str_list = convert_pairs_to_str_list args in 
+        if (check_arg_reoccurrence str_list) then raise X_syntax_error;
         if (is_proper_list args) then LambdaSimple(str_list, body_seq) else 
         let lst_without_last_element = remove_last_element str_list in 
         let last_element = get_last_element str_list in 
