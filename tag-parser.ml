@@ -54,11 +54,11 @@ let rec expr_eq e1 e2 =
                        
 exception X_syntax_error;;
 
-(* module type TAG_PARSER =  *)
-(* sig
+module type TAG_PARSER = 
+sig
   val tag_parse_expression : sexpr -> expr
   val tag_parse_expressions : sexpr list -> expr list
-end;;  *)
+end;; 
 (* signature TAG_PARSER *)
 
 module Tag_Parser 
@@ -307,22 +307,15 @@ let rec parse_exp sexpr = match sexpr with
   | _ -> raise X_syntax_error
 
   and expand_mit_def name args body = 
-  (* let rec add_body_to_args rec_args rec_body = match rec_args with
-  | Pair(Symbol str, Nil) -> Pair(Symbol str, Pair(rec_body,Nil))
-  | Pair(Symbol str, rest) -> Pair(Symbol str, add_body_to_args rest rec_body)
-  | Nil -> Pair(rec_body,Nil)
-  | _ -> raise X_syntax_error in *)
-  
-  (* let lambda_form = Pair(Symbol "lambda", (add_body_to_args args body)) in *)
   let lambda_form = Pair(Symbol "lambda", Pair(args, Pair(body, Nil))) in
   let form = Pair(Symbol "define", Pair(name, Pair(lambda_form,Nil))) in form
 ;;
 
 
 
-let tag_parse_expression sexpr = raise X_not_yet_implemented;;
+let tag_parse_expression sexpr = parse_exp sexpr;;
 
-let tag_parse_expressions sexpr = raise X_not_yet_implemented;;
+let tag_parse_expressions sexpr = List.map parse_exp sexpr;;
 
   
 end;; (* struct Tag_Parser *)
