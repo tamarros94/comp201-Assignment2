@@ -141,12 +141,21 @@ let rec change_to_whatever ribs = match ribs with
 | Nil -> Nil
 | _ -> raise X_syntax_error;;
 
-let rec wrap_ribs_in_set ribs body = match ribs with
+(* let rec wrap_ribs_in_set ribs body = match ribs with
 |Pair(Pair(var,Pair(sexpr_val, Nil)),Nil) -> Pair(Pair(Symbol "set!", Pair(var, Pair(sexpr_val, Nil))), Pair(Pair(Symbol "let", Pair(Nil, body)), Nil))
 |Pair(Pair(var,Pair(sexpr_val,Nil)), rest) -> Pair(Pair(Symbol "set!", Pair(var, Pair(sexpr_val, Nil))), (wrap_ribs_in_set rest body))
 |Nil -> Pair(Pair(Symbol "let", Pair(Nil, body)), Nil)
-| _ -> raise X_syntax_error;;
+| _ -> raise X_syntax_error;; *)
 
+let wrap_ribs_in_set ribs body = 
+ let rec wrap_ribs_rec rec_ribs rec_body = match rec_ribs with
+|Pair(Pair(var,Pair(sexpr_val, Nil)),Nil) -> Pair(Pair(Symbol "set!", Pair(var, Pair(sexpr_val, Nil))), Pair(Pair(Symbol "let", Pair(Nil, rec_body)), Nil))
+|Pair(Pair(var,Pair(sexpr_val,Nil)), rest) -> Pair(Pair(Symbol "set!", Pair(var, Pair(sexpr_val, Nil))), (wrap_ribs_rec rest rec_body))
+|Nil -> (match body with 
+  | Nil -> Nil 
+  | _ -> body)
+| _ -> raise X_syntax_error in
+wrap_ribs_rec ribs body;;
 
 let get_first_pair pairs = match pairs with
     | Nil -> Nil
@@ -184,7 +193,7 @@ let rec parse_exp sexpr = match sexpr with
   | Pair(Symbol("lambda"), Pair(args, body)) -> tag_parse_lambda args body
   | Pair(Symbol "let", Pair(ribs, body)) -> parse_exp (expand_let ribs body)
   | Pair(Symbol "let*", Pair(ribs, body)) -> parse_exp (expand_let_star ribs body)
-  | Pair(Symbol "letrec", Pair(ribs, body)) -> parse_exp (expand_letrec ribs body)
+  | Pair(Symbol "letrec", Pair(ribs, body)) -> Const(Sexpr(expand_letrec ribs body))
   (* Const(Sexpr((expand_let ribs body))) *)
   (*or*)
   | Pair(Symbol "or", bool_pairs) -> tag_parse_or bool_pairs
@@ -307,13 +316,16 @@ let rec parse_exp sexpr = match sexpr with
     let val_list = ribs_to_val_list ribs in
     handle_let_star_body ribs body var_list val_list
 
-  and expand_letrec ribs body = 
+  and expand_letrec ribs body = match ribs with
+  | Nil -> expand_let ribs body
+  | Pair(rib, rest) -> 
     let new_ribs = change_to_whatever ribs in
     let set_body = wrap_ribs_in_set ribs body in
     (* let l_body = Pair(Symbol "let", Pair(Nil, body)) in *)
     let form = Pair(Symbol "let", Pair(new_ribs,set_body)) in
     (* let complete_form = Pair(Symbol "let", Pair(new_ribs,new_body)) in *)
     form
+  | _ -> raise X_syntax_error
 
   and expand_and bool_pairs = match bool_pairs with
   | Nil -> Bool(true)
