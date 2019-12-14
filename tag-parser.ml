@@ -190,7 +190,7 @@ let rec parse_exp sexpr = match sexpr with
   | Pair(Symbol "or", bool_pairs) -> tag_parse_or bool_pairs
   | Pair(Symbol "and", bool_pairs) -> parse_exp (expand_and bool_pairs)
   (*MIT define*)
-  | Pair(Symbol "define", Pair(Pair(name,args),Pair(body,Nil))) -> parse_exp (expand_mit_def name args body)
+  | Pair(Symbol "define", Pair(Pair(name, args), body)) -> parse_exp (expand_mit_def name args body)
   (*define*)
   | Pair(Symbol "define", Pair(name, sexpr)) -> tag_parse_define name sexpr
   (*set*)
@@ -326,7 +326,7 @@ let rec parse_exp sexpr = match sexpr with
   | _ -> raise X_syntax_error
 
   and expand_mit_def name args body = 
-  let lambda_form = Pair(Symbol "lambda", Pair(args, Pair(body, Nil))) in
+  let lambda_form = Pair(Symbol "lambda", Pair(args, body)) in
   let form = Pair(Symbol "define", Pair(name, Pair(lambda_form,Nil))) in form
 ;;
 
