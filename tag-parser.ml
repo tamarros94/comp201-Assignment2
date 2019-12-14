@@ -192,7 +192,7 @@ let rec parse_exp sexpr = match sexpr with
   (*MIT define*)
   | Pair(Symbol "define", Pair(Pair(name,args),Pair(body,Nil))) -> parse_exp (expand_mit_def name args body)
   (*define*)
-  | Pair(Symbol "define", Pair(name, Pair(sexpr, Nil))) -> Def((parse_exp name), (parse_exp sexpr))
+  | Pair(Symbol "define", Pair(name, sexpr)) -> tag_parse_define name sexpr
   (*set*)
   | Pair(Symbol "set!", Pair(name, Pair(sexpr, Nil))) -> Set((parse_exp name), (parse_exp sexpr))
   (*sequence*)
@@ -205,6 +205,11 @@ let rec parse_exp sexpr = match sexpr with
   | Nil -> If(parse_exp test, parse_exp dit, Const(Void))
   | Pair(sexpr, Nil) -> If (parse_exp test, parse_exp dit, parse_exp sexpr)
   |_ -> raise X_syntax_error
+
+  and tag_parse_define name sexpr = match sexpr with
+  | Nil ->  Def((parse_exp name), Const(Void))
+  | Pair(a, Nil)-> Def((parse_exp name), (parse_exp a))
+  | other -> raise X_syntax_error
 
   and tag_parse_lambda args body =
   let body_seq = (tag_parse_seq_implicit body) in
@@ -220,8 +225,9 @@ let rec parse_exp sexpr = match sexpr with
       | _ -> raise X_syntax_error
 
   and tag_parse_or bool_pairs = match bool_pairs with
-  | Pair(Nil, Nil) -> Const(Sexpr (Bool false))
-  | Pair (non_empty, Nil) -> let bool_list = List.map parse_exp (convert_pairs_to_list non_empty) in
+  | Nil -> Const(Sexpr (Bool false))
+  | Pair (a,Nil) -> Const(Sexpr (a))
+  | Pair (a,b) -> let bool_list = List.map parse_exp (convert_pairs_to_list bool_pairs) in
       Or(bool_list)
   | _ -> raise X_syntax_error
 
