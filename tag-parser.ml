@@ -250,15 +250,14 @@ let rec parse_exp sexpr = match sexpr with
     Applic(proc_expr, exprs)
 
   and expand_quasiquote e = match e with
-  | Pair(Symbol("unquote"), Pair(sexpr, Nil)) -> Pair(Symbol "define", Pair(Pair(Symbol "square", Pair(Symbol "y", Nil)), Pair(Pair(Symbol "*", Pair(Symbol "x", Pair(Symbol "x", Nil))), Nil))) 
-
+  | Pair(Symbol("unquote"), Pair(sexpr, Nil)) -> sexpr
   | Pair(Symbol("unquote-splicing"), Pair(sexpr, Nil)) -> raise X_syntax_error
   | Pair(Pair(Symbol("unquote-splicing"), Pair(sexpr, Nil)), x) -> Pair(Symbol("append"),Pair(sexpr,Pair((expand_quasiquote x),Nil)))
   | Pair(x, Pair(Symbol("unquote-splicing"), Pair(sexpr, Nil))) -> Pair(Symbol("cons"),Pair((expand_quasiquote x),Pair(sexpr,Nil)))
   | Pair(x, y) -> Pair(Symbol("cons"),Pair((expand_quasiquote x), Pair((expand_quasiquote y),Nil)))
   | Nil -> Pair(Symbol("quote"), Pair(Nil, Nil))
   | Symbol(x) -> Pair(Symbol("quote"), Pair(Symbol(x), Nil))
-  | _ -> raise X_syntax_error
+  | other -> other
 
   and expand_cond ribs = match ribs with
   (*3rd form*)
@@ -299,8 +298,9 @@ let rec parse_exp sexpr = match sexpr with
           let first_val = Pair((get_first_pair vals),Nil) in
           let rest_vars = remove_first_pair vars in
           let rest_vals = remove_first_pair vals in
-          let lambda_sexpr = Pair(Symbol("lambda"), Pair(first_var, (handle_let_star_body rest body rest_vars rest_vals))) in
-          Pair(lambda_sexpr,first_val)
+          let body = handle_let_star_body rest body rest_vars rest_vals in
+          let lambda_sexpr = Pair(Pair(Symbol("lambda"), Pair(first_var, Pair(body, Nil))),first_val) in
+          lambda_sexpr
       )
         | _ -> raise X_syntax_error in
     let var_list = ribs_to_var_list ribs in 

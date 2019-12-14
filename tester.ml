@@ -326,15 +326,7 @@ let rec print_list = function
               Const (Sexpr (Bool false))));;
     
 (* let* & letrec *)
-  test_ "(let* (a 3) (b 5) (+ a b))" (Applic
-                  (LambdaSimple ([],
-                    Applic
-                      (LambdaSimple ([],
-                        Seq
-                        [Applic (Var "b", [Const (Sexpr (Number (Int 5)))]);
-                          Applic (Var "+", [Var "a"; Var "b"])]),
-                      [])),
-                  []));;
+
 
   test_ "(let* ((a 2) (b (+ 1 a))) b)"   
                       (Applic
